@@ -1,0 +1,13 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: automated_email_api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=docker
+    volumes:
+      - .:/app
+    restart: unless-stopped
