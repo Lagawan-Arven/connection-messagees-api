@@ -1,4 +1,5 @@
 from fastapi import FastAPI,BackgroundTasks,Request,HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from email.message import EmailMessage
 import smtplib,os,logging
 
@@ -13,6 +14,14 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = ["https://lagawan-arven.github.io/Arven-Lagawan/"],
+    allow_credentials = True,
+    allow_methods = ["*"],
+    allow_headers = ["*"]
+)
 
 @app.get("/",tags=["Health Check"])
 def health():
