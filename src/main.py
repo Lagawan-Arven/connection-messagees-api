@@ -39,7 +39,7 @@ def send_message(request: Request, message: schemas.Message, bg_task: Background
 
         bg_task.add_task(send_email,msg)
         logger.info("Message sent")
-        return {f"message":"Message sent from {message.name}"}
+        return {"message":f"Message sent from {message.name}"}
     except HTTPException:
         logger.info(f"Failed to send the message from: {message.name}")
         raise
@@ -50,9 +50,8 @@ def send_message(request: Request, message: schemas.Message, bg_task: Background
 APP_PASSWORD = os.getenv("APP_PASSWORD")
 def send_email(message):
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com",465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com",587) as server:
             server.login("lagawan0831@gmail.com",APP_PASSWORD)
             server.send_message(message)
     except:
         logger.info("Failed to send the email")
-        raise HTTPException(status_code=417,detail="Failed to send the email")
