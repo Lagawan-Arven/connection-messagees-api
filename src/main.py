@@ -1,9 +1,9 @@
 from fastapi import FastAPI,BackgroundTasks,Request,HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from email.message import EmailMessage
-import smtplib,os,logging
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+import os,logging
 
-from src.schemas import schemas
 from src.configurations.env_var_config import ENV
 from src.configurations.logging_config import setup_logging
 from src.configurations.limiter_config import limiter
@@ -29,29 +29,32 @@ def health():
 
 @app.post("/message",tags=["Message"])
 @limiter.limit("5/minute")
-def send_message(request: Request, message: schemas.Message, bg_task: BackgroundTasks):
+def send_message(request: Request, name: str, email: str, content: str, bg_task: BackgroundTasks):
     try:
-        msg = EmailMessage()
-        msg.set_content(f"Name: {message.name} \nEmail: {message.email} \nContent: {message.content}")
-        msg["Subject"] = "Connect Message"
-        msg["From"] = "lagawan0831@gmail.com"
-        msg["To"] = "arvenlagawan0731@gmail.com"
+        bg_task.add_task(send_email, name, email, content)
 
-        bg_task.add_task(send_email,msg)
         logger.info("Message sent")
-        return {"message":f"Message sent from {message.name}"}
+        return {"message":f"Message sent from {name}"}
     except HTTPException:
-        logger.info(f"Failed to send the message from: {message.name}")
+        logger.info(f"Failed to send the message from: {name}")
         raise
     except Exception as e:
-        logger.info(f"Internal Server Error | Failed to send the message from: {message.name}")
+        logger.info(f"Internal Server Error | Failed to send the message from: {name}")
         raise HTTPException(status_code=500,detail="Internal Server Error") from e
 
 APP_PASSWORD = os.getenv("APP_PASSWORD")
-def send_email(message):
+def send_email(name: str, email: str, content: str):
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com",587) as server:
-            server.login("lagawan0831@gmail.com",APP_PASSWORD)
-            server.send_message(message)
-    except:
-        logger.info("Failed to send the email")
+        message = Mail(
+            from_email="lagawan0831@gmail.com",
+            to_emails="arvenlagawan0731@gmail.com",
+            subject="Connect Message",
+            plain_text_content=f"Name: {name}\nEmail: {email}\n\nMessage:\n{content}"
+        )
+        sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
+        response = sg.send(message)
+
+        logger.info(f"Email sent via SendGrid | Status: {response.status_code}")
+
+    except Exception as e:
+        logger.error(f"SendGrid email failed: {e}")
