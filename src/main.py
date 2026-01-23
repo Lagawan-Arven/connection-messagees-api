@@ -2,6 +2,7 @@ from fastapi import FastAPI,BackgroundTasks,Request,HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+from pydantic import BaseModel
 import os,logging
 
 from src.configurations.env_var_config import ENV
@@ -23,23 +24,28 @@ app.add_middleware(
     allow_headers = ["*"]
 )
 
+class MessageRequest(BaseModel):
+    name: str
+    email: str
+    content: str
+
 @app.get("/",tags=["Health Check"])
 def health():
     return {"status":"ok"}
 
 @app.post("/message",tags=["Message"])
 @limiter.limit("5/minute")
-def send_message(request: Request, name: str, email: str, content: str, bg_task: BackgroundTasks):
+def send_message(request: Request, message_request: MessageRequest, bg_task: BackgroundTasks):
     try:
-        bg_task.add_task(send_email, name, email, content)
+        bg_task.add_task(send_email, message_request.name, message_request.email, message_request.content)
 
         logger.info("Message sent")
-        return {"message":f"Message sent from {name}"}
+        return {"message":f"Message sent from {message_request.name}"}
     except HTTPException:
-        logger.info(f"Failed to send the message from: {name}")
+        logger.info(f"Failed to send the message from: {message_request.name}")
         raise
     except Exception as e:
-        logger.info(f"Internal Server Error | Failed to send the message from: {name}")
+        logger.info(f"Internal Server Error | Failed to send the message from: {message_request.name}")
         raise HTTPException(status_code=500,detail="Internal Server Error") from e
 
 APP_PASSWORD = os.getenv("APP_PASSWORD")
